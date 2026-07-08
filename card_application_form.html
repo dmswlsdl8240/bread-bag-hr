@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>명함 신청서</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
 <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" rel="stylesheet">
 <style>
   :root{
@@ -73,9 +74,26 @@
           <input id="f_name" required placeholder="홍길동">
         </div>
         <div class="field">
+          <label>직무</label>
+          <input id="f_job" required placeholder="예: 디자인, 인사, 재무/회계, 구매, 지점 서브매니저 등">
+        </div>
+        <div class="field">
           <label>직급</label>
-          <input id="f_position" required placeholder="예: 매니저, 사원" list="positionList">
-          <datalist id="positionList"></datalist>
+          <select id="f_position_select" required>
+            <option value="">선택하세요</option>
+            <option value="팀장">팀장</option>
+            <option value="점장">점장</option>
+            <option value="부점장">부점장</option>
+            <option value="슈퍼바이저">슈퍼바이저</option>
+            <option value="선임슈퍼바이저">선임슈퍼바이저</option>
+            <option value="사원">사원</option>
+            <option value="주임/대리">주임/대리</option>
+            <option value="직급제 이외">직급제 이외 (직접입력)</option>
+          </select>
+        </div>
+        <div class="field" id="f_position_custom_wrap" style="display:none;">
+          <label>직급 직접입력</label>
+          <input id="f_position_custom" placeholder="실제 직급/역할을 입력하세요">
         </div>
         <div class="field">
           <label>입사일</label>
@@ -113,6 +131,22 @@
       <label>Anon Public Key</label>
       <input id="cfgKey" placeholder="eyJhbGciOi...">
     </div>
+    <div class="field">
+      <label>디자인 담당자 이메일</label>
+      <input id="cfgDesignerEmail" placeholder="designer@example.com">
+    </div>
+    <div class="field">
+      <label>EmailJS Service ID</label>
+      <input id="cfgEmailjsService" placeholder="service_xxxxxxx">
+    </div>
+    <div class="field">
+      <label>EmailJS Template ID</label>
+      <input id="cfgEmailjsTemplate" placeholder="template_xxxxxxx">
+    </div>
+    <div class="field">
+      <label>EmailJS Public Key</label>
+      <input id="cfgEmailjsPublicKey" placeholder="Public Key">
+    </div>
     <div class="modal-actions">
       <button class="btn-ghost" id="cfgCancel">닫기</button>
       <button class="submit-btn" id="cfgSave" style="width:auto;">저장</button>
@@ -125,6 +159,10 @@
    Supabase 연결 설정 (하드코딩 금지 — 관리자가 최초 1회 입력/저장)
 ========================================================= */
 const CFG_KEY = 'hr_supabase_cfg'; // 관리 시스템과 공용
+const DEFAULT_DESIGNER_EMAIL = 'dmswlsdl8240@naver.com';
+const DEFAULT_EMAILJS_PUBLIC_KEY = 'V8GzBiop8WVz9QJ7x';
+const DEFAULT_EMAILJS_SERVICE = 'service_yrpn4yp';
+const DEFAULT_EMAILJS_TEMPLATE = 'template_sswyaxf';
 let sb = null;
 
 function getCfg(){
@@ -147,7 +185,12 @@ function initSupabase(){
 
 document.getElementById('settingsLink').onclick = () => {
   const cfg = getCfg();
-  if(cfg){ document.getElementById('cfgUrl').value = cfg.url; document.getElementById('cfgKey').value = cfg.key; }
+  document.getElementById('cfgUrl').value = cfg ? cfg.url || '' : '';
+  document.getElementById('cfgKey').value = cfg ? cfg.key || '' : '';
+  document.getElementById('cfgDesignerEmail').value = cfg && cfg.designerEmail ? cfg.designerEmail : DEFAULT_DESIGNER_EMAIL;
+  document.getElementById('cfgEmailjsService').value = cfg && cfg.emailjsService ? cfg.emailjsService : DEFAULT_EMAILJS_SERVICE;
+  document.getElementById('cfgEmailjsTemplate').value = cfg && cfg.emailjsTemplate ? cfg.emailjsTemplate : DEFAULT_EMAILJS_TEMPLATE;
+  document.getElementById('cfgEmailjsPublicKey').value = cfg && cfg.emailjsPublicKey ? cfg.emailjsPublicKey : DEFAULT_EMAILJS_PUBLIC_KEY;
   document.getElementById('modalBg').classList.add('show');
 };
 document.getElementById('cfgCancel').onclick = () => document.getElementById('modalBg').classList.remove('show');
@@ -155,14 +198,18 @@ document.getElementById('cfgSave').onclick = () => {
   const url = document.getElementById('cfgUrl').value.trim();
   const key = document.getElementById('cfgKey').value.trim();
   if(!url || !key){ alert('URL과 Key를 모두 입력하세요.'); return; }
-  localStorage.setItem(CFG_KEY, JSON.stringify({url, key}));
+  const designerEmail = document.getElementById('cfgDesignerEmail').value.trim() || DEFAULT_DESIGNER_EMAIL;
+  const emailjsService = document.getElementById('cfgEmailjsService').value.trim();
+  const emailjsTemplate = document.getElementById('cfgEmailjsTemplate').value.trim();
+  const emailjsPublicKey = document.getElementById('cfgEmailjsPublicKey').value.trim();
+  localStorage.setItem(CFG_KEY, JSON.stringify({url, key, designerEmail, emailjsService, emailjsTemplate, emailjsPublicKey}));
   document.getElementById('modalBg').classList.remove('show');
   initSupabase();
   loadMasterData();
 };
 
 /* =========================================================
-   마스터 데이터 (지점 / 부서 / 직급 자동완성) — DB에서 로드, 하드코딩 없음
+   마스터 데이터 (지점 / 부서) — DB에서 로드, 하드코딩 없음
 ========================================================= */
 async function loadMasterData(){
   if(!sb) return;
@@ -174,10 +221,44 @@ async function loadMasterData(){
   if(!de && depts){
     document.getElementById('f_dept').innerHTML = '<option value="">선택하세요</option>' + depts.map(d=>`<option value="${d.id}">${d.name}</option>`).join('');
   }
-  const { data: positions } = await sb.from('card_applications').select('position').limit(200);
-  if(positions){
-    const uniq = [...new Set(positions.map(p=>p.position).filter(Boolean))];
-    document.getElementById('positionList').innerHTML = uniq.map(p=>`<option value="${p}">`).join('');
+}
+
+/* =========================================================
+   직급 "직급제 이외" 선택 시 직접입력 필드 노출
+========================================================= */
+const positionSelectEl = document.getElementById('f_position_select');
+const positionCustomWrap = document.getElementById('f_position_custom_wrap');
+const positionCustomInput = document.getElementById('f_position_custom');
+positionSelectEl.addEventListener('change', () => {
+  const isOther = positionSelectEl.value === '직급제 이외';
+  positionCustomWrap.style.display = isOther ? 'block' : 'none';
+  positionCustomInput.required = isOther;
+  if(!isOther) positionCustomInput.value = '';
+});
+
+/* =========================================================
+   디자인 담당자 이메일 알림 (EmailJS)
+========================================================= */
+async function notifyDesigner(applicant){
+  const cfg = getCfg();
+  const serviceId = (cfg && cfg.emailjsService) || DEFAULT_EMAILJS_SERVICE;
+  const templateId = (cfg && cfg.emailjsTemplate) || DEFAULT_EMAILJS_TEMPLATE;
+  const toEmail = (cfg && cfg.designerEmail) || DEFAULT_DESIGNER_EMAIL;
+  const publicKey = (cfg && cfg.emailjsPublicKey) || DEFAULT_EMAILJS_PUBLIC_KEY;
+  try{
+    await emailjs.send(serviceId, templateId, {
+      to_email: toEmail,
+      applicant_name: applicant.name,
+      branch: applicant.branchName,
+      department: applicant.departmentName,
+      job: applicant.job,
+      position: applicant.position,
+      hire_date: applicant.hire_date,
+      phone: applicant.phone,
+      applicant_email: applicant.email,
+    }, publicKey);
+  }catch(e){
+    console.error('디자인 담당자 알림 메일 발송 실패:', e);
   }
 }
 
@@ -192,11 +273,18 @@ document.getElementById('applyForm').addEventListener('submit', async (e)=>{
   const msg = document.getElementById('applyMsg');
   btn.disabled = true; msg.className='msg';
 
+  const branchSelect = document.getElementById('f_branch');
+  const deptSelect = document.getElementById('f_dept');
+  const position = positionSelectEl.value === '직급제 이외'
+    ? positionCustomInput.value.trim()
+    : positionSelectEl.value;
+
   const payload = {
-    branch_id: document.getElementById('f_branch').value,
-    department_id: document.getElementById('f_dept').value,
+    branch_id: branchSelect.value,
+    department_id: deptSelect.value,
+    job: document.getElementById('f_job').value.trim(),
     name: document.getElementById('f_name').value.trim(),
-    position: document.getElementById('f_position').value.trim(),
+    position: position,
     hire_date: document.getElementById('f_hire').value,
     phone: document.getElementById('f_phone').value.trim(),
     email: document.getElementById('f_email').value.trim(),
@@ -211,7 +299,14 @@ document.getElementById('applyForm').addEventListener('submit', async (e)=>{
   } else {
     msg.textContent = '신청이 완료되었습니다. 확인 후 순차 발급됩니다.';
     msg.classList.add('ok');
+    notifyDesigner({
+      ...payload,
+      branchName: branchSelect.options[branchSelect.selectedIndex]?.text || '',
+      departmentName: deptSelect.options[deptSelect.selectedIndex]?.text || '',
+    });
     document.getElementById('applyForm').reset();
+    positionCustomWrap.style.display = 'none';
+    positionCustomInput.required = false;
   }
 });
 

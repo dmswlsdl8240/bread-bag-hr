@@ -484,7 +484,7 @@ function renderHrCardTable(){
   wrap.innerHTML = `
   <table>
     <thead><tr>
-      <th>지점</th><th>부서</th><th>이름</th><th>직급</th><th>입사일</th><th>연락처</th>
+      <th>지점</th><th>부서</th><th>이름</th><th>직무</th><th>직급</th><th>입사일</th><th>연락처</th>
       <th>재직상태</th><th>인사확인</th><th>확인자</th><th>디자인확인</th><th>상태</th>
     </tr></thead>
     <tbody>
@@ -493,6 +493,7 @@ function renderHrCardTable(){
           <td>${row.branches?.name || '-'}</td>
           <td>${row.departments?.name || '-'}</td>
           <td>${row.name}</td>
+          <td>${row.job || '-'}</td>
           <td>${row.position}</td>
           <td>${row.hire_date}</td>
           <td style="font-size:12px;color:var(--sub);">${row.phone}<br>${row.email}</td>
@@ -527,7 +528,7 @@ function renderDesignCardTable(){
   wrap.innerHTML = `
   <table>
     <thead><tr>
-      <th>지점</th><th>부서</th><th>이름</th><th>직급</th><th>입사일</th>
+      <th>지점</th><th>부서</th><th>이름</th><th>직무</th><th>직급</th><th>입사일</th>
       <th>인사확인</th><th>디자인확인</th><th>확인자</th><th>발급완료</th><th>상태</th>
     </tr></thead>
     <tbody>
@@ -536,6 +537,7 @@ function renderDesignCardTable(){
           <td>${row.branches?.name || '-'}</td>
           <td>${row.departments?.name || '-'}</td>
           <td>${row.name}</td>
+          <td>${row.job || '-'}</td>
           <td>${row.position}</td>
           <td>${row.hire_date}</td>
           <td style="text-align:center;">${row.hr_verified ? '✅' : '—'}</td>

@@ -35,6 +35,7 @@ create table if not exists card_applications (
   department_id      uuid references departments(id),
   name               text not null,
   hire_date          date not null,
+  job                text,
   position           text not null,
   phone              text not null,
   email              text not null,
@@ -122,6 +123,19 @@ create trigger trg_name_tags_updated_at
 -- 예시)
 -- insert into branches (name, sort_order) values ('부평본점', 1), ('강남점', 2);
 -- insert into departments (name, sort_order) values ('홀', 1), ('주방', 2), ('관리', 3);
+
+-- 5-1) 실제 운영 지점 / 부서 (최초 1회 실행) -----------------------
+insert into branches (name, sort_order) values
+  ('본사', 1), ('빵백이네', 2), ('계양구청점', 3), ('신중동점', 4),
+  ('마곡점', 5), ('송도점', 6), ('청라점', 7)
+on conflict (name) do nothing;
+
+insert into departments (name, sort_order) values
+  ('운영부', 1), ('사업부', 2), ('생산부', 3)
+on conflict (name) do nothing;
+
+-- 5-2) 기존에 이미 스키마를 실행한 적이 있다면 job 컬럼만 추가 -------
+alter table card_applications add column if not exists job text;
 
 -- 6) RLS(행 단위 보안)는 별도 시스템 코드 작업 시 설계에 맞춰 설정하세요.
 -- 지금은 개발 편의를 위해 비활성 상태로 둡니다. 운영 전 반드시 정책을 설정하세요.
