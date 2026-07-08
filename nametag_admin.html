@@ -50,11 +50,12 @@
   .msg.ok{display:block; background:var(--ok-bg); color:var(--ok);}
   .msg.err{display:block; background:var(--warn-bg); color:var(--warn);}
 
-  table{width:100%; border-collapse:collapse; font-size:13px;}
-  th, td{text-align:left; padding:10px; border-bottom:1px solid var(--line); vertical-align:middle;}
+  .table-scroll{overflow-x:auto;}
+  table{width:max-content; min-width:100%; border-collapse:collapse; font-size:13px;}
+  th, td{text-align:left; padding:10px; border-bottom:1px solid var(--line); vertical-align:middle; white-space:nowrap;}
   th{color:var(--sub); font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:.3px;}
   tbody tr:hover{background:#FAFBFC;}
-  .badge{display:inline-block; padding:3px 10px; border-radius:20px; font-size:11.5px; font-weight:700;}
+  .badge{display:inline-block; padding:3px 10px; border-radius:20px; font-size:11.5px; font-weight:700; white-space:nowrap;}
   .badge.접수, .badge.등록{background:#EEF1F5; color:#5A6472;}
   .badge.확인중{background:var(--pending-bg); color:var(--pending);}
   .badge.완료{background:var(--ok-bg); color:var(--ok);}
@@ -447,6 +448,7 @@ function renderHrTagTable(){
   const wrap = document.getElementById('hrTagTableWrap');
   if(!allTags.length){ wrap.innerHTML = '<div class="empty">등록된 인원이 없습니다. 상단의 + 입사자 등록을 눌러 추가하세요.</div>'; return; }
   wrap.innerHTML = `
+  <div class="table-scroll">
   <table>
     <thead><tr>
       <th>지점</th><th>부서</th><th>이름</th><th>직급</th><th>입사일</th><th>퇴사일</th>
@@ -480,7 +482,8 @@ function renderHrTagTable(){
         </tr>
       `).join('')}
     </tbody>
-  </table>`;
+  </table>
+  </div>`;
 }
 function handleTagStatusChange(id, value){
   const fields = { employment_status: value };
@@ -501,6 +504,7 @@ function renderDesignTagTable(){
   const wrap = document.getElementById('designTagTableWrap');
   if(!allTags.length){ wrap.innerHTML = '<div class="empty">등록된 인원이 없습니다.</div>'; return; }
   wrap.innerHTML = `
+  <div class="table-scroll">
   <table>
     <thead><tr>
       <th>지점</th><th>부서</th><th>이름</th><th>직급</th><th>입사일</th><th>퇴사일</th><th>재직상태</th>
@@ -519,12 +523,13 @@ function renderDesignTagTable(){
           <td style="text-align:center;">${row.hr_checked ? '✅' : '—'}</td>
           <td class="chk-cell"><input type="checkbox" ${row.design_checked?'checked':''} onchange="tagDesignCheck('${row.id}', this.checked)"></td>
           <td style="font-size:12px;color:var(--sub);">${row.design_checked_by || '-'}</td>
-          <td class="chk-cell"><input type="checkbox" ${row.issued?'checked':''} ${row.hr_checked && row.design_checked ? '' : 'disabled'} onchange="tagMarkIssued('${row.id}', this.checked)"></td>
+          <td class="chk-cell"><input type="checkbox" ${row.issued?'checked':''} onchange="tagMarkIssued('${row.id}', this.checked)"></td>
           <td>${tagStatusBadge(computeTagStatus(row))}</td>
         </tr>
       `).join('')}
     </tbody>
-  </table>`;
+  </table>
+  </div>`;
 }
 function tagDesignCheck(id, checked){
   if(checked){
@@ -596,6 +601,7 @@ function renderHrCardTable(){
   const countNote = month ? `<div class="desc" style="margin:-4px 0 12px;">${month} 신청 <b>${rows.length}</b>건 (전체 ${allApplications.length}건 중)</div>` : `<div class="desc" style="margin:-4px 0 12px;">전체 <b>${allApplications.length}</b>건</div>`;
   if(!rows.length){ wrap.innerHTML = countNote + '<div class="empty">신청 내역이 없습니다.</div>'; return; }
   wrap.innerHTML = countNote + `
+  <div class="table-scroll">
   <table>
     <thead><tr>
       <th>지점</th><th>부서</th><th>이름</th><th>직무</th><th>직급</th><th>입사일</th><th>연락처</th>
@@ -631,7 +637,8 @@ function renderHrCardTable(){
         </tr>
       `).join('')}
     </tbody>
-  </table>`;
+  </table>
+  </div>`;
 }
 
 /* =========================================================
@@ -701,6 +708,7 @@ function renderDesignCardTable(){
   const countNote = month ? `<div class="desc" style="margin:-4px 0 12px;">${month} 신청 <b>${rows.length}</b>건 (전체 ${allApplications.length}건 중)</div>` : `<div class="desc" style="margin:-4px 0 12px;">전체 <b>${allApplications.length}</b>건</div>`;
   if(!rows.length){ wrap.innerHTML = countNote + '<div class="empty">신청 내역이 없습니다.</div>'; return; }
   wrap.innerHTML = countNote + `
+  <div class="table-scroll">
   <table>
     <thead><tr>
       <th>지점</th><th>부서</th><th>이름</th><th>직무</th><th>직급</th><th>입사일</th>
@@ -718,12 +726,13 @@ function renderDesignCardTable(){
           <td style="text-align:center;">${row.hr_verified ? '✅' : '—'}</td>
           <td class="chk-cell"><input type="checkbox" ${row.design_verified?'checked':''} onchange="cardDesignVerify('${row.id}', this.checked)"></td>
           <td style="font-size:12px;color:var(--sub);">${row.design_verified_by || '-'}</td>
-          <td class="chk-cell"><input type="checkbox" ${row.issued?'checked':''} ${row.hr_verified && row.design_verified ? '' : 'disabled'} onchange="cardMarkIssued('${row.id}', this.checked)"></td>
+          <td class="chk-cell"><input type="checkbox" ${row.issued?'checked':''} onchange="cardMarkIssued('${row.id}', this.checked)"></td>
           <td>${cardStatusBadge(computeCardStatus(row))}</td>
         </tr>
       `).join('')}
     </tbody>
-  </table>`;
+  </table>
+  </div>`;
 }
 function cardDesignVerify(id, checked){
   if(checked){
