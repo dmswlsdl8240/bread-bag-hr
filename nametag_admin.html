@@ -362,7 +362,7 @@ function renderHrTagTable(){
   wrap.innerHTML = `
   <table>
     <thead><tr>
-      <th>지점</th><th>부서</th><th>이름</th><th>직급</th><th>입사일</th>
+      <th>지점</th><th>부서</th><th>이름</th><th>직급</th><th>입사일</th><th>퇴사일</th>
       <th>재직상태</th><th>인사확인</th><th>확인자</th><th>디자인확인</th><th>상태</th>
     </tr></thead>
     <tbody>
@@ -373,6 +373,7 @@ function renderHrTagTable(){
           <td>${row.name}</td>
           <td>${row.position}</td>
           <td>${row.hire_date}</td>
+          <td style="color:var(--warn);">${row.resigned_at || '-'}</td>
           <td>
             <select onchange="handleTagStatusChange('${row.id}', this.value)" style="padding:6px;font-size:12px;">
               <option value="재직중" ${row.employment_status==='재직중'?'selected':''}>재직중</option>
@@ -409,7 +410,7 @@ function renderDesignTagTable(){
   wrap.innerHTML = `
   <table>
     <thead><tr>
-      <th>지점</th><th>부서</th><th>이름</th><th>직급</th><th>재직상태</th>
+      <th>지점</th><th>부서</th><th>이름</th><th>직급</th><th>입사일</th><th>퇴사일</th><th>재직상태</th>
       <th>인사확인</th><th>디자인확인</th><th>확인자</th><th>발급완료</th><th>상태</th>
     </tr></thead>
     <tbody>
@@ -419,6 +420,8 @@ function renderDesignTagTable(){
           <td>${row.departments?.name || '-'}</td>
           <td>${row.name}</td>
           <td>${row.position}</td>
+          <td>${row.hire_date}</td>
+          <td style="color:var(--warn);">${row.resigned_at || '-'}</td>
           <td>${row.employment_status}</td>
           <td style="text-align:center;">${row.hr_checked ? '✅' : '—'}</td>
           <td class="chk-cell"><input type="checkbox" ${row.design_checked?'checked':''} onchange="tagDesignCheck('${row.id}', this.checked)"></td>
