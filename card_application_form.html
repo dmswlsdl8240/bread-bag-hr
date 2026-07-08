@@ -182,6 +182,8 @@
    Supabase 연결 설정 (하드코딩 금지 — 관리자가 최초 1회 입력/저장)
 ========================================================= */
 const CFG_KEY = 'hr_supabase_cfg'; // 관리 시스템과 공용
+const DEFAULT_SUPABASE_URL = 'https://ovgfwwtutmgwjpjhukqp.supabase.co';
+const DEFAULT_SUPABASE_KEY = 'sb_publishable_FPO4_z0gwZIA3_KIM1anKA_1kfoeZ8Z';
 const DEFAULT_DESIGNER_EMAIL = 'dmswlsdl8240@naver.com';
 const DEFAULT_EMAILJS_PUBLIC_KEY = 'V8GzBiop8WVz9QJ7x';
 const DEFAULT_EMAILJS_SERVICE = 'service_yrpn4yp';
@@ -193,10 +195,12 @@ function getCfg(){
 }
 function initSupabase(){
   const cfg = getCfg();
+  const url = (cfg && cfg.url) || DEFAULT_SUPABASE_URL;
+  const key = (cfg && cfg.key) || DEFAULT_SUPABASE_KEY;
   const banner = document.getElementById('connBanner');
-  if(cfg && cfg.url && cfg.key){
+  if(url && key){
     try{
-      sb = supabase.createClient(cfg.url, cfg.key);
+      sb = supabase.createClient(url, key);
       banner.classList.remove('show');
       return true;
     }catch(e){ console.error(e); }
@@ -208,8 +212,8 @@ function initSupabase(){
 
 document.getElementById('settingsLink').onclick = () => {
   const cfg = getCfg();
-  document.getElementById('cfgUrl').value = cfg ? cfg.url || '' : '';
-  document.getElementById('cfgKey').value = cfg ? cfg.key || '' : '';
+  document.getElementById('cfgUrl').value = cfg && cfg.url ? cfg.url : DEFAULT_SUPABASE_URL;
+  document.getElementById('cfgKey').value = cfg && cfg.key ? cfg.key : DEFAULT_SUPABASE_KEY;
   document.getElementById('cfgDesignerEmail').value = cfg && cfg.designerEmail ? cfg.designerEmail : DEFAULT_DESIGNER_EMAIL;
   document.getElementById('cfgEmailjsService').value = cfg && cfg.emailjsService ? cfg.emailjsService : DEFAULT_EMAILJS_SERVICE;
   document.getElementById('cfgEmailjsTemplate').value = cfg && cfg.emailjsTemplate ? cfg.emailjsTemplate : DEFAULT_EMAILJS_TEMPLATE;

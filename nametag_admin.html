@@ -289,6 +289,8 @@
    Supabase 연결 설정 (하드코딩 금지 — 사용자가 직접 입력/저장)
 ========================================================= */
 const CFG_KEY = 'hr_supabase_cfg'; // 명함신청서 페이지와 공용
+const DEFAULT_SUPABASE_URL = 'https://ovgfwwtutmgwjpjhukqp.supabase.co';
+const DEFAULT_SUPABASE_KEY = 'sb_publishable_FPO4_z0gwZIA3_KIM1anKA_1kfoeZ8Z';
 let sb = null;
 
 function getCfg(){
@@ -304,10 +306,12 @@ function whoWithDate(name, iso){
 }
 function initSupabase(){
   const cfg = getCfg();
+  const url = (cfg && cfg.url) || DEFAULT_SUPABASE_URL;
+  const key = (cfg && cfg.key) || DEFAULT_SUPABASE_KEY;
   const banner = document.getElementById('connBanner');
-  if(cfg && cfg.url && cfg.key){
+  if(url && key){
     try{
-      sb = supabase.createClient(cfg.url, cfg.key);
+      sb = supabase.createClient(url, key);
       banner.classList.remove('show');
       return true;
     }catch(e){ console.error(e); }
@@ -319,7 +323,8 @@ function initSupabase(){
 
 document.getElementById('settingsBtn').onclick = () => {
   const cfg = getCfg();
-  if(cfg){ document.getElementById('cfgUrl').value = cfg.url; document.getElementById('cfgKey').value = cfg.key; }
+  document.getElementById('cfgUrl').value = cfg && cfg.url ? cfg.url : DEFAULT_SUPABASE_URL;
+  document.getElementById('cfgKey').value = cfg && cfg.key ? cfg.key : DEFAULT_SUPABASE_KEY;
   document.getElementById('modalBg').classList.add('show');
 };
 document.getElementById('cfgCancel').onclick = () => document.getElementById('modalBg').classList.remove('show');
