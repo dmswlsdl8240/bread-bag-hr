@@ -3,55 +3,77 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>명함 신청서</title>
+<title>빵백화점 명함 신청서</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
 <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" rel="stylesheet">
 <style>
   :root{
-    --navy:#1B2A3C; --amber:#E8A33D; --amber-2:#C97F1F;
-    --bg:#F4F6F8; --card:#FFFFFF; --line:#E4E8ED; --text:#1E2530; --sub:#6B7686;
+    --crust:#3A2416; --wheat:#C98A2E; --oven:#B5502A;
+    --bg:#FBF3E4; --card:#FFFDF8; --line:rgba(58,36,22,.14); --text:#3A2416; --sub:#7A5B3D;
     --ok:#2E9E5B; --ok-bg:#E7F6ED; --warn:#C94B4B; --warn-bg:#FBEAEA; --pending:#B9791C; --pending-bg:#FFF4E0;
   }
   *{box-sizing:border-box;}
   body{margin:0; font-family:'Pretendard',-apple-system,sans-serif; background:var(--bg); color:var(--text); min-height:100vh;}
-  header{background:var(--navy); color:#fff; padding:28px 24px; text-align:center;}
-  header h1{margin:0 0 6px; font-size:20px; font-weight:700;}
-  header p{margin:0; font-size:13px; color:#B9C4D3;}
+  .bread-mark path{fill:none; stroke-width:7; stroke-linecap:round; stroke-linejoin:round;}
+  .bread-mark .loaf{fill:none;}
+  header{background:var(--crust); color:#fff; padding:30px 24px 26px; text-align:center; position:relative; overflow:hidden;}
+  header .bread-mark{position:absolute; right:-24px; bottom:-34px; width:150px; height:auto; opacity:.12; transform:rotate(8deg);}
+  header .bread-mark path{stroke:#fff;}
+  header .bread-mark .loaf{stroke:#fff; fill:none;}
+  header .brand{display:flex; align-items:center; justify-content:center; gap:8px; margin:0 0 6px; position:relative;}
+  header .brand svg{width:22px; height:auto; flex:none;}
+  header .brand svg .loaf{fill:none; stroke:var(--wheat);}
+  header .brand svg path{stroke:var(--wheat);}
+  header h1{margin:0; font-size:20px; font-weight:700;}
+  header p{margin:0; font-size:13px; color:#D8C4A8; position:relative;}
 
   main{max-width:560px; margin:0 auto; padding:32px 20px 60px;}
   .card{background:var(--card); border:1px solid var(--line); border-radius:14px; padding:28px;}
   .grid{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
   @media(max-width:520px){.grid{grid-template-columns:1fr;}}
   label{font-size:12.5px; font-weight:600; color:var(--sub); display:block; margin-bottom:6px;}
-  input, select{width:100%; padding:12px; border:1px solid var(--line); border-radius:9px; font-size:14.5px; font-family:inherit; background:#fbfcfd; color:var(--text);}
-  input:focus, select:focus{outline:none; border-color:var(--amber);}
+  input, select{width:100%; padding:12px; border:1px solid var(--line); border-radius:9px; font-size:14.5px; font-family:inherit; background:#fffefb; color:var(--text);}
+  input:focus, select:focus{outline:none; border-color:var(--wheat);}
   .field{margin-bottom:16px;}
-  .submit-btn{width:100%; background:var(--amber); color:#fff; border:none; border-radius:9px; padding:14px 22px; font-size:15px; font-weight:700; cursor:pointer; margin-top:8px;}
-  .submit-btn:hover{background:var(--amber-2);}
-  .submit-btn:disabled{background:#D8DEE6; cursor:not-allowed;}
+  .submit-btn{width:100%; background:var(--wheat); color:#fff; border:none; border-radius:9px; padding:14px 22px; font-size:15px; font-weight:700; cursor:pointer; margin-top:8px;}
+  .submit-btn:hover{background:var(--oven);}
+  .submit-btn:disabled{background:#D8CBB4; cursor:not-allowed;}
   .msg{font-size:13px; margin-top:14px; padding:11px 13px; border-radius:8px; display:none;}
   .msg.ok{display:block; background:var(--ok-bg); color:var(--ok);}
   .msg.err{display:block; background:var(--warn-bg); color:var(--warn);}
   .banner{background:var(--pending-bg); color:var(--pending); font-size:12.5px; padding:10px 20px; text-align:center; display:none;}
   .banner.show{display:block;}
 
-  footer{text-align:center; padding:20px; font-size:11.5px; color:#9AA5B2;}
-  footer a{color:#9AA5B2; text-decoration:underline; cursor:pointer;}
+  footer{text-align:center; padding:20px; font-size:11.5px; color:var(--sub);}
+  footer a{color:var(--sub); text-decoration:underline; cursor:pointer;}
 
-  .modal-bg{display:none; position:fixed; inset:0; background:rgba(20,26,36,.5); align-items:center; justify-content:center; z-index:100;}
+  .modal-bg{display:none; position:fixed; inset:0; background:rgba(20,12,4,.5); align-items:center; justify-content:center; z-index:100;}
   .modal-bg.show{display:flex;}
-  .modal{background:#fff; border-radius:14px; padding:26px; width:min(440px,92vw);}
+  .modal{background:var(--card); border-radius:14px; padding:26px; width:min(440px,92vw);}
   .modal h3{margin:0 0 4px;}
   .modal .desc{color:var(--sub); font-size:12.5px; margin-bottom:18px;}
   .modal-actions{display:flex; justify-content:flex-end; gap:8px; margin-top:18px;}
-  .btn-ghost{background:#fff; border:1px solid var(--line); border-radius:8px; padding:9px 16px; cursor:pointer; font-size:13px;}
+  .btn-ghost{background:var(--card); border:1px solid var(--line); border-radius:8px; padding:9px 16px; cursor:pointer; font-size:13px; color:var(--text);}
 </style>
 </head>
 <body>
 
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="loaf" viewBox="0 0 200 140">
+    <path class="loaf" d="M20,112 C8,70 26,24 100,20 C174,24 192,70 180,112 C180,128 158,138 100,138 C42,138 20,128 20,112 Z"/>
+    <path d="M58,46 C70,56 76,66 68,80"/>
+    <path d="M94,38 C106,50 112,62 103,78"/>
+    <path d="M130,46 C142,56 148,66 139,80"/>
+  </symbol>
+</svg>
+
 <header>
-  <h1>명함 신청서</h1>
+  <svg class="bread-mark" viewBox="0 0 200 140"><use href="#loaf"/></svg>
+  <div class="brand">
+    <svg class="bread-mark" viewBox="0 0 200 140"><use href="#loaf"/></svg>
+    <h1>빵백화점 명함 신청서</h1>
+  </div>
   <p>정보를 입력해 신청해주세요. 확인 후 순차 발급됩니다.</p>
 </header>
 
