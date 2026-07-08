@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>빵백화점 HR 시스템</title>
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" rel="stylesheet">
+<style>
+  :root{
+    --navy:#1B2A3C; --navy-2:#28405A; --amber:#E8A33D; --amber-2:#C97F1F;
+    --bg:#F4F6F8; --card:#FFFFFF; --line:#E4E8ED; --text:#1E2530; --sub:#6B7686;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; font-family:'Pretendard',-apple-system,sans-serif; background:var(--bg); color:var(--text);
+    min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px;
+  }
+  .wrap{max-width:520px; width:100%; text-align:center;}
+  h1{font-size:22px; margin:0 0 8px; color:var(--navy);}
+  p.sub{color:var(--sub); font-size:13.5px; margin:0 0 32px;}
+  .links{display:flex; flex-direction:column; gap:14px;}
+  a.card{
+    display:block; background:var(--card); border:1px solid var(--line); border-radius:14px;
+    padding:22px 24px; text-align:left; text-decoration:none; color:var(--text);
+    transition:border-color .15s;
+  }
+  a.card:hover{border-color:var(--amber);}
+  a.card .tag{font-size:11.5px; font-weight:700; color:var(--amber-2); margin-bottom:6px; display:block;}
+  a.card .name{font-size:16.5px; font-weight:700; margin-bottom:4px;}
+  a.card .desc{font-size:13px; color:var(--sub);}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>빵백화점 HR 시스템</h1>
+    <p class="sub">명함 · 명찰 발급 관리</p>
+    <div class="links">
+      <a class="card" href="card_application_form.html">
+        <span class="tag">신청자용</span>
+        <div class="name">명함 신청서</div>
+        <div class="desc">명함이 필요한 분은 여기서 정보를 입력해 신청하세요.</div>
+      </a>
+      <a class="card" href="nametag_admin.html">
+        <span class="tag">담당자용</span>
+        <div class="name">명찰 · 명함 발급 관리</div>
+        <div class="desc">인사담당자 / 디자인담당자 확인 및 발급 처리 화면</div>
+      </a>
+    </div>
+  </div>
+</body>
+</html>
