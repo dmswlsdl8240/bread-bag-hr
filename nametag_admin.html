@@ -454,6 +454,14 @@ async function submitAdd(){
     msg.textContent = '모든 항목을 입력하세요.'; msg.className = 'msg err'; return;
   }
 
+  if(!editingTagId){
+    const dup = allTags.find(t => t.name.trim() === name && t.employment_status === '재직중');
+    if(dup){
+      const proceed = confirm(`"${name}"님은 이미 재직중으로 등록되어 있습니다 (${dup.branches?.name||'-'}·${dup.departments?.name||'-'}·${dup.position}).\n\n그래도 중복으로 새로 등록하시겠습니까?`);
+      if(!proceed) return;
+    }
+  }
+
   const btn = document.getElementById('addSaveBtn');
   btn.disabled = true;
   const fields = { branch_id: branch, department_id: dept, name, position, hire_date: hire };
