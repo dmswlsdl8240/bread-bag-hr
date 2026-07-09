@@ -218,22 +218,37 @@
   </div>
 </div>
 
-<!-- 직급 발령 모달 (기존 재직자, 명찰) -->
+<!-- 직급 발령 모달 (재직자 직급변경 — 시스템에 없던 인원은 직접 입력해 새로 등록) -->
 <div class="modal-bg" id="promoModalBg">
   <div class="modal">
     <h3>직급 발령</h3>
-    <div class="desc">직급이 변경된 재직자를 선택하고 새 직급을 입력하세요. 저장하면 명찰이 재발급 대상(확인 초기화)으로 전환됩니다.</div>
+    <div class="desc">이름을 입력하세요. 기존에 등록된 재직자면 자동완성으로 나오고 정보가 채워집니다. 목록에 없는 인원(아직 명찰 시스템에 등록 안 된 재직자)은 직접 입력해 새로 등록하면서 발령을 남길 수 있습니다.</div>
     <div class="field">
-      <label>대상자</label>
-      <select id="p_emp" required onchange="onPromoEmpChange()"><option value="">선택하세요</option></select>
+      <label>대상자 이름</label>
+      <input id="p_name" required placeholder="이름 입력 (기존 인원은 자동완성)" list="activeNameList" oninput="onPromoNameInput()">
+      <datalist id="activeNameList"></datalist>
+    </div>
+    <div class="grid">
+      <div class="field">
+        <label>지점</label>
+        <select id="p_branch" required><option value="">불러오는 중...</option></select>
+      </div>
+      <div class="field">
+        <label>부서</label>
+        <select id="p_dept" required><option value="">불러오는 중...</option></select>
+      </div>
     </div>
     <div class="field">
       <label>현재 직급</label>
-      <input id="p_current" disabled>
+      <input id="p_current" disabled placeholder="기존 인원이면 자동으로 표시됩니다 (신규면 비어있음)">
     </div>
     <div class="field">
       <label>변경 후 직급</label>
       <input id="p_new" required placeholder="예: 주임, 대리" list="positionList2">
+    </div>
+    <div class="field">
+      <label>입사일</label>
+      <input id="p_hire" type="date" required>
     </div>
     <div class="field">
       <label>발령일</label>
@@ -394,12 +409,14 @@ async function loadMasterData(){
     const opts = '<option value="">선택하세요</option>' + branches.map(b=>`<option value="${b.id}">${b.name}</option>`).join('');
     document.getElementById('a_branch').innerHTML = opts;
     document.getElementById('e_branch').innerHTML = opts;
+    document.getElementById('p_branch').innerHTML = opts;
   }
   const { data: depts, error: de } = await sb.from('departments').select('id,name').eq('is_active', true).order('sort_order');
   if(!de && depts){
     const opts = '<option value="">선택하세요</option>' + depts.map(d=>`<option value="${d.id}">${d.name}</option>`).join('');
     document.getElementById('a_dept').innerHTML = opts;
     document.getElementById('e_dept').innerHTML = opts;
+    document.getElementById('p_dept').innerHTML = opts;
   }
   const { data: positions } = await sb.from('name_tags').select('position').limit(200);
   if(positions){
@@ -486,56 +503,82 @@ async function deleteTag(id){
 }
 
 /* =========================================================
-   직급 발령 (기존 재직자 직급변경, 명찰 재발급 대상 전환)
+   직급 발령 (재직자 직급변경 — 시스템에 없던 인원은 새로 등록하며 발령 남김)
 ========================================================= */
+let promoMatchedId = null;
 function openPromotionModal(){
-  const sel = document.getElementById('p_emp');
-  const active = allTags.filter(t=>t.employment_status==='재직중');
-  sel.innerHTML = '<option value="">선택하세요</option>' + active.map(t=>`<option value="${t.id}">${t.name} (${t.branches?.name||'-'}·${t.departments?.name||'-'}·현 ${t.position})</option>`).join('');
+  promoMatchedId = null;
+  document.getElementById('activeNameList').innerHTML = allTags.filter(t=>t.employment_status==='재직중').map(t=>`<option value="${t.name}">`).join('');
+  document.getElementById('p_name').value = '';
   document.getElementById('p_current').value = '';
   document.getElementById('p_new').value = '';
+  document.getElementById('p_hire').value = '';
+  document.getElementById('p_branch').value = '';
+  document.getElementById('p_dept').value = '';
   document.getElementById('p_date').value = new Date().toISOString().slice(0,10);
   document.getElementById('promoMsg').className = 'msg';
   document.getElementById('promoModalBg').classList.add('show');
 }
-function onPromoEmpChange(){
-  const row = allTags.find(t=>t.id===document.getElementById('p_emp').value);
-  document.getElementById('p_current').value = row ? row.position : '';
+function onPromoNameInput(){
+  const name = document.getElementById('p_name').value.trim();
+  const row = allTags.find(t=>t.employment_status==='재직중' && t.name.trim()===name);
+  const msg = document.getElementById('promoMsg');
+  if(row){
+    promoMatchedId = row.id;
+    document.getElementById('p_current').value = row.position;
+    document.getElementById('p_branch').value = row.branch_id || '';
+    document.getElementById('p_dept').value = row.department_id || '';
+    document.getElementById('p_hire').value = row.hire_date || '';
+    msg.textContent = '기존에 등록된 재직자입니다. 정보가 자동으로 채워졌습니다.'; msg.className = 'msg ok';
+  } else {
+    promoMatchedId = null;
+    document.getElementById('p_current').value = '';
+    if(name){ msg.textContent = '명찰 시스템에 없는 인원입니다. 지점/부서/입사일을 입력하면 신규 등록되며 발령 이력이 남습니다.'; msg.className = 'msg'; document.getElementById('promoMsg').style.display='block'; }
+    else { msg.textContent = ''; msg.className = 'msg'; }
+  }
 }
 function closePromotionModal(){
   document.getElementById('promoModalBg').classList.remove('show');
 }
 async function submitPromotion(){
   if(!sb){ alert('먼저 DB 연결 설정을 완료하세요.'); return; }
-  const id = document.getElementById('p_emp').value;
+  const name = document.getElementById('p_name').value.trim();
+  const branch = document.getElementById('p_branch').value;
+  const dept = document.getElementById('p_dept').value;
   const newPosition = document.getElementById('p_new').value.trim();
+  const hire = document.getElementById('p_hire').value;
   const date = document.getElementById('p_date').value;
   const msg = document.getElementById('promoMsg');
-  const row = allTags.find(t=>t.id===id);
 
-  if(!id || !newPosition || !date){
-    msg.textContent = '대상자, 변경 후 직급, 발령일을 모두 입력하세요.'; msg.className = 'msg err'; return;
+  if(!name || !branch || !dept || !newPosition || !hire || !date){
+    msg.textContent = '이름, 지점, 부서, 변경 후 직급, 입사일, 발령일을 모두 입력하세요.'; msg.className = 'msg err'; return;
   }
 
   const btn = document.getElementById('promoSaveBtn');
   btn.disabled = true;
-  const historyLine = `[직급발령 ${date}] ${row.position} → ${newPosition}`;
-  const note = row.note ? `${row.note}\n${historyLine}` : historyLine;
-  const { error } = await sb.from('name_tags').update({
-    position: newPosition, note,
-    hr_checked: false, hr_checked_by: null, hr_checked_at: null,
-    design_checked: false, design_checked_by: null, design_checked_at: null,
-    issued: false, issued_at: null, status: '등록',
-  }).eq('id', id);
-  btn.disabled = false;
 
-  if(error){
-    msg.textContent = '발령 등록 실패: ' + error.message; msg.className = 'msg err';
-  } else {
+  if(promoMatchedId){
+    const row = allTags.find(t=>t.id===promoMatchedId);
+    const historyLine = `[직급발령 ${date}] ${row.position} → ${newPosition}`;
+    const note = row.note ? `${row.note}\n${historyLine}` : historyLine;
+    const { error } = await sb.from('name_tags').update({
+      position: newPosition, branch_id: branch, department_id: dept, note,
+      hr_checked: false, hr_checked_by: null, hr_checked_at: null,
+      design_checked: false, design_checked_by: null, design_checked_at: null,
+      issued: false, issued_at: null, status: '등록',
+    }).eq('id', promoMatchedId);
+    btn.disabled = false;
+    if(error){ msg.textContent = '발령 등록 실패: ' + error.message; msg.className = 'msg err'; return; }
     msg.textContent = '직급 발령이 등록되었습니다. 명찰이 재발급 대상으로 전환됐습니다.'; msg.className = 'msg ok';
-    loadTags();
-    setTimeout(closePromotionModal, 900);
+  } else {
+    const note = `[직급발령 ${date}] 명찰 시스템 신규 등록 (직급: ${newPosition})`;
+    const { error } = await sb.from('name_tags').insert({ branch_id: branch, department_id: dept, name, position: newPosition, hire_date: hire, note });
+    btn.disabled = false;
+    if(error){ msg.textContent = '등록 실패: ' + error.message; msg.className = 'msg err'; return; }
+    msg.textContent = '신규 등록되었습니다 (직급 발령 이력 포함).'; msg.className = 'msg ok';
   }
+  loadTags();
+  setTimeout(closePromotionModal, 900);
 }
 
 /* =========================================================
