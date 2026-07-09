@@ -128,9 +128,10 @@
     <div class="section-head"><span class="dot"></span><h2>명찰</h2><span>등록 · 입퇴사관리</span></div>
     <div class="card">
       <div class="toolbar">
-        <div class="desc" style="margin-bottom:0;">입사자를 등록하고, 퇴사자는 재직상태를 변경하세요.</div>
+        <div class="desc" style="margin-bottom:0;">입사자를 등록하고, 퇴사자는 재직상태를 변경하세요. 기존 재직자의 직급이 바뀌면 "직급 발령"으로 처리하세요 (명찰 재발급 대상이 됩니다).</div>
         <div style="display:flex; gap:8px;">
           <button class="refresh-btn" onclick="loadTags()">새로고침</button>
+          <button class="add-btn" style="background:var(--amber-2);" onclick="openPromotionModal()">+ 직급 발령</button>
           <button class="add-btn" onclick="openAddModal()">+ 입사자 등록</button>
         </div>
       </div>
@@ -213,6 +214,35 @@
     <div class="modal-actions">
       <button class="btn-ghost" onclick="closeAddModal()">취소</button>
       <button class="submit-btn" id="addSaveBtn" onclick="submitAdd()">등록</button>
+    </div>
+  </div>
+</div>
+
+<!-- 직급 발령 모달 (기존 재직자, 명찰) -->
+<div class="modal-bg" id="promoModalBg">
+  <div class="modal">
+    <h3>직급 발령</h3>
+    <div class="desc">직급이 변경된 재직자를 선택하고 새 직급을 입력하세요. 저장하면 명찰이 재발급 대상(확인 초기화)으로 전환됩니다.</div>
+    <div class="field">
+      <label>대상자</label>
+      <select id="p_emp" required onchange="onPromoEmpChange()"><option value="">선택하세요</option></select>
+    </div>
+    <div class="field">
+      <label>현재 직급</label>
+      <input id="p_current" disabled>
+    </div>
+    <div class="field">
+      <label>변경 후 직급</label>
+      <input id="p_new" required placeholder="예: 주임, 대리" list="positionList2">
+    </div>
+    <div class="field">
+      <label>발령일</label>
+      <input id="p_date" type="date" required>
+    </div>
+    <div class="msg" id="promoMsg"></div>
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="closePromotionModal()">취소</button>
+      <button class="submit-btn" id="promoSaveBtn" onclick="submitPromotion()">발령 등록</button>
     </div>
   </div>
 </div>
@@ -448,6 +478,59 @@ async function deleteTag(id){
 }
 
 /* =========================================================
+   직급 발령 (기존 재직자 직급변경, 명찰 재발급 대상 전환)
+========================================================= */
+function openPromotionModal(){
+  const sel = document.getElementById('p_emp');
+  const active = allTags.filter(t=>t.employment_status==='재직중');
+  sel.innerHTML = '<option value="">선택하세요</option>' + active.map(t=>`<option value="${t.id}">${t.name} (${t.branches?.name||'-'}·${t.departments?.name||'-'}·현 ${t.position})</option>`).join('');
+  document.getElementById('p_current').value = '';
+  document.getElementById('p_new').value = '';
+  document.getElementById('p_date').value = new Date().toISOString().slice(0,10);
+  document.getElementById('promoMsg').className = 'msg';
+  document.getElementById('promoModalBg').classList.add('show');
+}
+function onPromoEmpChange(){
+  const row = allTags.find(t=>t.id===document.getElementById('p_emp').value);
+  document.getElementById('p_current').value = row ? row.position : '';
+}
+function closePromotionModal(){
+  document.getElementById('promoModalBg').classList.remove('show');
+}
+async function submitPromotion(){
+  if(!sb){ alert('먼저 DB 연결 설정을 완료하세요.'); return; }
+  const id = document.getElementById('p_emp').value;
+  const newPosition = document.getElementById('p_new').value.trim();
+  const date = document.getElementById('p_date').value;
+  const msg = document.getElementById('promoMsg');
+  const row = allTags.find(t=>t.id===id);
+
+  if(!id || !newPosition || !date){
+    msg.textContent = '대상자, 변경 후 직급, 발령일을 모두 입력하세요.'; msg.className = 'msg err'; return;
+  }
+
+  const btn = document.getElementById('promoSaveBtn');
+  btn.disabled = true;
+  const historyLine = `[직급발령 ${date}] ${row.position} → ${newPosition}`;
+  const note = row.note ? `${row.note}\n${historyLine}` : historyLine;
+  const { error } = await sb.from('name_tags').update({
+    position: newPosition, note,
+    hr_checked: false, hr_checked_by: null, hr_checked_at: null,
+    design_checked: false, design_checked_by: null, design_checked_at: null,
+    issued: false, issued_at: null, status: '등록',
+  }).eq('id', id);
+  btn.disabled = false;
+
+  if(error){
+    msg.textContent = '발령 등록 실패: ' + error.message; msg.className = 'msg err';
+  } else {
+    msg.textContent = '직급 발령이 등록되었습니다. 명찰이 재발급 대상으로 전환됐습니다.'; msg.className = 'msg ok';
+    loadTags();
+    setTimeout(closePromotionModal, 900);
+  }
+}
+
+/* =========================================================
    명찰 (name_tags) 로드 / 렌더 / 업데이트
 ========================================================= */
 let allTags = [];
@@ -488,7 +571,7 @@ function renderHrTagTable(){
   <table>
     <thead><tr>
       <th>지점</th><th>부서</th><th>이름</th><th>직급</th><th>등록일</th><th>입사일</th><th>퇴사일</th>
-      <th>재직상태</th><th>인사확인</th><th>확인자</th><th>디자인확인</th><th>상태</th><th>관리</th>
+      <th>재직상태</th><th>인사확인</th><th>확인자</th><th>디자인확인</th><th>상태</th><th>비고</th><th>관리</th>
     </tr></thead>
     <tbody>
       ${allTags.map(row=>`
@@ -510,6 +593,7 @@ function renderHrTagTable(){
           <td data-label="확인자" style="font-size:12px;color:var(--sub);">${whoWithDate(row.hr_checked_by, row.hr_checked_at)}</td>
           <td data-label="디자인확인" style="text-align:center;">${row.design_checked ? '✅' : '—'}</td>
           <td data-label="상태">${tagStatusBadge(computeTagStatus(row))}</td>
+          <td data-label="비고" style="font-size:11.5px;color:var(--sub); white-space:pre-line;">${row.note || '-'}</td>
           <td data-label="관리">
             <div style="display:flex; gap:6px;">
               <button class="btn-ghost" style="padding:6px 10px; font-size:11.5px;" onclick="openEditTagModal('${row.id}')">수정</button>
@@ -545,7 +629,7 @@ function renderDesignTagTable(){
   <table>
     <thead><tr>
       <th>지점</th><th>부서</th><th>이름</th><th>직급</th><th>등록일</th><th>입사일</th><th>퇴사일</th><th>재직상태</th>
-      <th>인사확인</th><th>디자인확인</th><th>확인자</th><th>발급완료</th><th>상태</th>
+      <th>인사확인</th><th>디자인확인</th><th>확인자</th><th>발급완료</th><th>상태</th><th>비고</th>
     </tr></thead>
     <tbody>
       ${allTags.map(row=>`
@@ -563,6 +647,7 @@ function renderDesignTagTable(){
           <td data-label="확인자" style="font-size:12px;color:var(--sub);">${whoWithDate(row.design_checked_by, row.design_checked_at)}</td>
           <td class="chk-cell" data-label="발급완료"><input type="checkbox" ${row.issued?'checked':''} onchange="tagMarkIssued('${row.id}', this.checked)"></td>
           <td data-label="상태">${tagStatusBadge(computeTagStatus(row))}</td>
+          <td data-label="비고" style="font-size:11.5px;color:var(--sub); white-space:pre-line;">${row.note || '-'}</td>
         </tr>
       `).join('')}
     </tbody>
