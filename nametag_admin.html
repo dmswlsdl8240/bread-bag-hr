@@ -263,18 +263,38 @@
   </div>
 </div>
 
-<!-- 퇴사 발령 모달 (재직자 퇴사처리) -->
+<!-- 퇴사 발령 모달 (재직자 퇴사처리 — 명찰 시스템에 없던 인원은 직접 입력해 퇴사자로 새로 등록) -->
 <div class="modal-bg" id="resignModalBg">
   <div class="modal">
     <h3>퇴사 발령</h3>
-    <div class="desc">퇴사하는 재직자의 이름을 입력하세요 (자동완성). 재직상태가 퇴사로 바뀌고 퇴사일과 사유가 비고에 기록됩니다.</div>
+    <div class="desc">이름을 입력하세요. 명찰 시스템에 등록된 재직자면 자동완성됩니다. 이 시스템에 등록된 적 없는 이전 인원(발령 이력 없이 근무해온 재직자)도 이름을 직접 입력하고 아래 정보를 채우면 퇴사자로 새로 등록할 수 있습니다.</div>
     <div class="field">
       <label>대상자 이름</label>
-      <input id="r_name" required placeholder="이름 입력 (재직중인 인원만 자동완성)" list="activeNameList" oninput="onResignNameInput()">
+      <input id="r_name" required placeholder="이름 입력 (재직중인 인원은 자동완성)" list="activeNameList" oninput="onResignNameInput()">
     </div>
     <div class="field">
       <label>소속</label>
       <input id="r_info" disabled placeholder="이름을 입력하면 지점·부서·직급이 표시됩니다">
+    </div>
+    <div id="resignNewFields" style="display:none;">
+      <div class="grid">
+        <div class="field">
+          <label>지점</label>
+          <select id="r_branch"><option value="">불러오는 중...</option></select>
+        </div>
+        <div class="field">
+          <label>부서</label>
+          <select id="r_dept"><option value="">불러오는 중...</option></select>
+        </div>
+      </div>
+      <div class="field">
+        <label>직급</label>
+        <input id="r_position" placeholder="예: 매니저, 사원" list="positionList2">
+      </div>
+      <div class="field">
+        <label>입사일</label>
+        <input id="r_hire" type="date">
+      </div>
     </div>
     <div class="field">
       <label>퇴사일</label>
@@ -440,6 +460,7 @@ async function loadMasterData(){
     document.getElementById('a_branch').innerHTML = opts;
     document.getElementById('e_branch').innerHTML = opts;
     document.getElementById('p_branch').innerHTML = opts;
+    document.getElementById('r_branch').innerHTML = opts;
   }
   const { data: depts, error: de } = await sb.from('departments').select('id,name').eq('is_active', true).order('sort_order');
   if(!de && depts){
@@ -447,6 +468,7 @@ async function loadMasterData(){
     document.getElementById('a_dept').innerHTML = opts;
     document.getElementById('e_dept').innerHTML = opts;
     document.getElementById('p_dept').innerHTML = opts;
+    document.getElementById('r_dept').innerHTML = opts;
   }
   const { data: positions } = await sb.from('name_tags').select('position').limit(200);
   if(positions){
@@ -620,6 +642,11 @@ function openResignModal(){
   document.getElementById('activeNameList').innerHTML = allTags.filter(t=>t.employment_status==='재직중').map(t=>`<option value="${t.name}">`).join('');
   document.getElementById('r_name').value = '';
   document.getElementById('r_info').value = '';
+  document.getElementById('r_branch').value = '';
+  document.getElementById('r_dept').value = '';
+  document.getElementById('r_position').value = '';
+  document.getElementById('r_hire').value = '';
+  document.getElementById('resignNewFields').style.display = 'none';
   document.getElementById('r_date').value = new Date().toISOString().slice(0,10);
   document.getElementById('r_reason').value = '';
   document.getElementById('resignMsg').className = 'msg';
@@ -629,15 +656,22 @@ function onResignNameInput(){
   const name = document.getElementById('r_name').value.trim();
   const row = allTags.find(t=>t.employment_status==='재직중' && t.name.trim()===name);
   const msg = document.getElementById('resignMsg');
+  const newFields = document.getElementById('resignNewFields');
   if(row){
     resignMatchedId = row.id;
     document.getElementById('r_info').value = `${row.branches?.name||'-'} · ${row.departments?.name||'-'} · ${row.position}`;
+    newFields.style.display = 'none';
     msg.textContent = ''; msg.className = 'msg';
   } else {
     resignMatchedId = null;
     document.getElementById('r_info').value = '';
-    if(name){ msg.textContent = '재직중인 인원 중에서 찾을 수 없습니다. 이름을 다시 확인해주세요.'; msg.className = 'msg err'; }
-    else { msg.textContent = ''; msg.className = 'msg'; }
+    if(name){
+      newFields.style.display = 'block';
+      msg.textContent = '명찰 시스템에 없는 인원입니다. 아래 지점/부서/직급/입사일을 입력하면 퇴사자로 새로 등록됩니다.'; msg.className = 'msg';
+    } else {
+      newFields.style.display = 'none';
+      msg.textContent = ''; msg.className = 'msg';
+    }
   }
 }
 function closeResignModal(){
@@ -645,31 +679,46 @@ function closeResignModal(){
 }
 async function submitResign(){
   if(!sb){ alert('먼저 DB 연결 설정을 완료하세요.'); return; }
+  const name = document.getElementById('r_name').value.trim();
   const date = document.getElementById('r_date').value;
   const reason = document.getElementById('r_reason').value.trim();
   const msg = document.getElementById('resignMsg');
 
-  if(!resignMatchedId){
-    msg.textContent = '재직중인 인원 중에서 이름을 선택(자동완성)해주세요.'; msg.className = 'msg err'; return;
-  }
   if(!date){
     msg.textContent = '퇴사일을 입력하세요.'; msg.className = 'msg err'; return;
   }
 
-  const row = allTags.find(t=>t.id===resignMatchedId);
   const btn = document.getElementById('resignSaveBtn');
-  btn.disabled = true;
   const historyLine = `[퇴사발령 ${date}]${reason ? ' 사유: '+reason : ''}`;
-  const note = row.note ? `${row.note}\n${historyLine}` : historyLine;
-  const { error } = await sb.from('name_tags').update({
-    employment_status: '퇴사', resigned_at: date, note,
-  }).eq('id', resignMatchedId);
-  btn.disabled = false;
 
-  if(error){
-    msg.textContent = '퇴사 발령 등록 실패: ' + error.message; msg.className = 'msg err'; return;
+  if(resignMatchedId){
+    const row = allTags.find(t=>t.id===resignMatchedId);
+    const note = row.note ? `${row.note}\n${historyLine}` : historyLine;
+    btn.disabled = true;
+    const { error } = await sb.from('name_tags').update({
+      employment_status: '퇴사', resigned_at: date, note,
+    }).eq('id', resignMatchedId);
+    btn.disabled = false;
+    if(error){ msg.textContent = '퇴사 발령 등록 실패: ' + error.message; msg.className = 'msg err'; return; }
+    msg.textContent = '퇴사 발령이 등록되었습니다.'; msg.className = 'msg ok';
+  } else {
+    const branch = document.getElementById('r_branch').value;
+    const dept = document.getElementById('r_dept').value;
+    const position = document.getElementById('r_position').value.trim();
+    const hire = document.getElementById('r_hire').value;
+    if(!name || !branch || !dept || !position || !hire){
+      msg.textContent = '이름, 지점, 부서, 직급, 입사일을 모두 입력하세요.'; msg.className = 'msg err'; return;
+    }
+    const note = `${historyLine} (명찰 시스템 신규 등록 · 퇴사자)`;
+    btn.disabled = true;
+    const { error } = await sb.from('name_tags').insert({
+      branch_id: branch, department_id: dept, name, position, hire_date: hire,
+      employment_status: '퇴사', resigned_at: date, note,
+    });
+    btn.disabled = false;
+    if(error){ msg.textContent = '등록 실패: ' + error.message; msg.className = 'msg err'; return; }
+    msg.textContent = '퇴사자로 신규 등록되었습니다.'; msg.className = 'msg ok';
   }
-  msg.textContent = '퇴사 발령이 등록되었습니다.'; msg.className = 'msg ok';
   loadTags();
   setTimeout(closeResignModal, 900);
 }
