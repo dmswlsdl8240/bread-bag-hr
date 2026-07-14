@@ -128,9 +128,10 @@
     <div class="section-head"><span class="dot"></span><h2>명찰</h2><span>등록 · 입퇴사관리</span></div>
     <div class="card">
       <div class="toolbar">
-        <div class="desc" style="margin-bottom:0;">입사자를 등록하고, 퇴사자는 재직상태를 변경하세요. 기존 재직자의 직급이 바뀌면 "직급 발령"으로 처리하세요 (명찰 재발급 대상이 됩니다).</div>
-        <div style="display:flex; gap:8px;">
+        <div class="desc" style="margin-bottom:0;">입사자를 등록하고, 기존 재직자의 직급이 바뀌면 "직급 발령", 퇴사하면 "퇴사 발령"으로 처리하세요.</div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
           <button class="refresh-btn" onclick="loadTags()">새로고침</button>
+          <button class="add-btn" style="background:var(--warn);" onclick="openResignModal()">+ 퇴사 발령</button>
           <button class="add-btn" style="background:var(--amber-2);" onclick="openPromotionModal()">+ 직급 발령</button>
           <button class="add-btn" onclick="openAddModal()">+ 입사자 등록</button>
         </div>
@@ -258,6 +259,35 @@
     <div class="modal-actions">
       <button class="btn-ghost" onclick="closePromotionModal()">취소</button>
       <button class="submit-btn" id="promoSaveBtn" onclick="submitPromotion()">발령 등록</button>
+    </div>
+  </div>
+</div>
+
+<!-- 퇴사 발령 모달 (재직자 퇴사처리) -->
+<div class="modal-bg" id="resignModalBg">
+  <div class="modal">
+    <h3>퇴사 발령</h3>
+    <div class="desc">퇴사하는 재직자의 이름을 입력하세요 (자동완성). 재직상태가 퇴사로 바뀌고 퇴사일과 사유가 비고에 기록됩니다.</div>
+    <div class="field">
+      <label>대상자 이름</label>
+      <input id="r_name" required placeholder="이름 입력 (재직중인 인원만 자동완성)" list="activeNameList" oninput="onResignNameInput()">
+    </div>
+    <div class="field">
+      <label>소속</label>
+      <input id="r_info" disabled placeholder="이름을 입력하면 지점·부서·직급이 표시됩니다">
+    </div>
+    <div class="field">
+      <label>퇴사일</label>
+      <input id="r_date" type="date" required>
+    </div>
+    <div class="field">
+      <label>퇴사 사유 (선택)</label>
+      <input id="r_reason" placeholder="예: 개인사정, 계약만료 등">
+    </div>
+    <div class="msg" id="resignMsg"></div>
+    <div class="modal-actions">
+      <button class="btn-ghost" onclick="closeResignModal()">취소</button>
+      <button class="submit-btn" id="resignSaveBtn" onclick="submitResign()" style="background:var(--warn);">퇴사 발령 등록</button>
     </div>
   </div>
 </div>
@@ -579,6 +609,69 @@ async function submitPromotion(){
   }
   loadTags();
   setTimeout(closePromotionModal, 900);
+}
+
+/* =========================================================
+   퇴사 발령 (재직자 퇴사처리)
+========================================================= */
+let resignMatchedId = null;
+function openResignModal(){
+  resignMatchedId = null;
+  document.getElementById('activeNameList').innerHTML = allTags.filter(t=>t.employment_status==='재직중').map(t=>`<option value="${t.name}">`).join('');
+  document.getElementById('r_name').value = '';
+  document.getElementById('r_info').value = '';
+  document.getElementById('r_date').value = new Date().toISOString().slice(0,10);
+  document.getElementById('r_reason').value = '';
+  document.getElementById('resignMsg').className = 'msg';
+  document.getElementById('resignModalBg').classList.add('show');
+}
+function onResignNameInput(){
+  const name = document.getElementById('r_name').value.trim();
+  const row = allTags.find(t=>t.employment_status==='재직중' && t.name.trim()===name);
+  const msg = document.getElementById('resignMsg');
+  if(row){
+    resignMatchedId = row.id;
+    document.getElementById('r_info').value = `${row.branches?.name||'-'} · ${row.departments?.name||'-'} · ${row.position}`;
+    msg.textContent = ''; msg.className = 'msg';
+  } else {
+    resignMatchedId = null;
+    document.getElementById('r_info').value = '';
+    if(name){ msg.textContent = '재직중인 인원 중에서 찾을 수 없습니다. 이름을 다시 확인해주세요.'; msg.className = 'msg err'; }
+    else { msg.textContent = ''; msg.className = 'msg'; }
+  }
+}
+function closeResignModal(){
+  document.getElementById('resignModalBg').classList.remove('show');
+}
+async function submitResign(){
+  if(!sb){ alert('먼저 DB 연결 설정을 완료하세요.'); return; }
+  const date = document.getElementById('r_date').value;
+  const reason = document.getElementById('r_reason').value.trim();
+  const msg = document.getElementById('resignMsg');
+
+  if(!resignMatchedId){
+    msg.textContent = '재직중인 인원 중에서 이름을 선택(자동완성)해주세요.'; msg.className = 'msg err'; return;
+  }
+  if(!date){
+    msg.textContent = '퇴사일을 입력하세요.'; msg.className = 'msg err'; return;
+  }
+
+  const row = allTags.find(t=>t.id===resignMatchedId);
+  const btn = document.getElementById('resignSaveBtn');
+  btn.disabled = true;
+  const historyLine = `[퇴사발령 ${date}]${reason ? ' 사유: '+reason : ''}`;
+  const note = row.note ? `${row.note}\n${historyLine}` : historyLine;
+  const { error } = await sb.from('name_tags').update({
+    employment_status: '퇴사', resigned_at: date, note,
+  }).eq('id', resignMatchedId);
+  btn.disabled = false;
+
+  if(error){
+    msg.textContent = '퇴사 발령 등록 실패: ' + error.message; msg.className = 'msg err'; return;
+  }
+  msg.textContent = '퇴사 발령이 등록되었습니다.'; msg.className = 'msg ok';
+  loadTags();
+  setTimeout(closeResignModal, 900);
 }
 
 /* =========================================================
