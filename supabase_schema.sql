@@ -137,9 +137,61 @@ on conflict (name) do nothing;
 -- 5-2) 기존에 이미 스키마를 실행한 적이 있다면 job 컬럼만 추가 -------
 alter table card_applications add column if not exists job text;
 
--- 6) RLS(행 단위 보안)는 별도 시스템 코드 작업 시 설계에 맞춰 설정하세요.
--- 지금은 개발 편의를 위해 비활성 상태로 둡니다. 운영 전 반드시 정책을 설정하세요.
-alter table branches disable row level security;
-alter table departments disable row level security;
-alter table card_applications disable row level security;
-alter table name_tags disable row level security;
+-- 6) RLS(행 단위 보안) --------------------------------------------
+-- 이 앱은 로그인 없이 anon(publishable) key 하나로 신청서 화면과 관리자
+-- 화면이 모두 동작합니다. 즉 RLS로도 "관리자만 조회/수정 가능"은
+-- 구현할 수 없고(둘 다 같은 익명 role), 대신 앱이 실제로 쓰는
+-- 작업만 허용해 마스터 데이터(지점/부서) 변조·불필요한 접근을 차단합니다.
+-- ⚠ card_applications / name_tags 는 관리자 화면 특성상 anon에게
+-- select/insert/update/delete를 모두 허용해야 합니다. anon key가
+-- 노출되면 개인정보(전화번호/이메일 등)는 여전히 읽고 쓸 수 있으므로,
+-- 완전한 보호가 필요하면 Supabase Auth 로그인을 별도로 추가하세요.
+
+alter table branches enable row level security;
+alter table departments enable row level security;
+alter table card_applications enable row level security;
+alter table name_tags enable row level security;
+
+-- 지점/부서: 신청서·관리 화면 모두 "조회"만 하고 코드로는 수정하지
+-- 않음(운영자가 Supabase 대시보드에서 직접 관리) → anon은 select만 허용
+drop policy if exists "branches_select_anon" on branches;
+create policy "branches_select_anon" on branches
+  for select to anon using (true);
+
+drop policy if exists "departments_select_anon" on departments;
+create policy "departments_select_anon" on departments
+  for select to anon using (true);
+
+-- 명함 신청: 신청서 화면은 insert, 관리자 화면은 select/update/delete
+drop policy if exists "card_applications_select_anon" on card_applications;
+create policy "card_applications_select_anon" on card_applications
+  for select to anon using (true);
+
+drop policy if exists "card_applications_insert_anon" on card_applications;
+create policy "card_applications_insert_anon" on card_applications
+  for insert to anon with check (true);
+
+drop policy if exists "card_applications_update_anon" on card_applications;
+create policy "card_applications_update_anon" on card_applications
+  for update to anon using (true) with check (true);
+
+drop policy if exists "card_applications_delete_anon" on card_applications;
+create policy "card_applications_delete_anon" on card_applications
+  for delete to anon using (true);
+
+-- 명찰: 관리자 화면에서 select/insert/update/delete 모두 사용
+drop policy if exists "name_tags_select_anon" on name_tags;
+create policy "name_tags_select_anon" on name_tags
+  for select to anon using (true);
+
+drop policy if exists "name_tags_insert_anon" on name_tags;
+create policy "name_tags_insert_anon" on name_tags
+  for insert to anon with check (true);
+
+drop policy if exists "name_tags_update_anon" on name_tags;
+create policy "name_tags_update_anon" on name_tags
+  for update to anon using (true) with check (true);
+
+drop policy if exists "name_tags_delete_anon" on name_tags;
+create policy "name_tags_delete_anon" on name_tags
+  for delete to anon using (true);

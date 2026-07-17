@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>명찰·명함 발급 관리</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
 <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" rel="stylesheet">
 <style>
   :root{
@@ -384,8 +385,9 @@
    Supabase 연결 설정 (하드코딩 금지 — 사용자가 직접 입력/저장)
 ========================================================= */
 const CFG_KEY = 'hr_supabase_cfg'; // 명함신청서 페이지와 공용
-const DEFAULT_SUPABASE_URL = 'https://ovgfwwtutmgwjpjhukqp.supabase.co';
-const DEFAULT_SUPABASE_KEY = 'sb_publishable_FPO4_z0gwZIA3_KIM1anKA_1kfoeZ8Z';
+const RC = window.HR_CONFIG || {};
+const DEFAULT_SUPABASE_URL = RC.supabaseUrl || '';
+const DEFAULT_SUPABASE_KEY = RC.supabaseKey || '';
 let sb = null;
 
 function getCfg(){
